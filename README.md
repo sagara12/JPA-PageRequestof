@@ -3,7 +3,6 @@
 ## 오류 상황
 * peagable 기능 구현 중 PageReqeust of 오류
 * write_id를 인식 하지 못함
-* 변수를 바꿧을때 제대로 돌아가는 것을 보아 write_id에 문제가 있었음
 
 > WriteService
 ```java
@@ -19,81 +18,56 @@ public List<WriteResponse> getList(Pageable pageable) {
 ```
 
 ## 오류 원인 
-Qeury DSL 버전 업데이트 되면서 기존에 setting을 인식하지 못함
+* 변수를 바꿧을때 제대로 돌아가는 것을 보아 write_id에 문제가 있었음
+* 변수 명  write_id에서 _ 이후 변수명을 인식 하지 못해서 sort 기준을 잡지 못함
 
 ## 오류 해결
-> build.gradle(고친 후)
+> WriteService
 ```java
-buildscript {
-	ext {
-		queryDslVersion = "5.0.0"
-	}
-}
-plugins {
-	id 'org.springframework.boot' version '2.6.3'
-	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
-	id "com.ewerk.gradle.plugins.querydsl" version "1.0.10"
-	id 'java'
-}
-group = 'jpabook'
-version = '0.0.1-SNAPSHOT'
-sourceCompatibility = '11'
+public List<WriteResponse> getList(Pageable pageable) {
+        //Pageable pageable = PageRequest.of(page, 5, Sort.Direction.DESC, "write_id");
 
-configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
-	}
-}
+      
+         return writeRepository.findAll(pageable).stream()
+                .map(write -> new WriteResponse(write)
+                 )
+                .collect(Collectors.toList());
+    }
+```
 
+> Write(Entity)
+```java
+package com.datePage.request.domain;
 
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
+import javax.persistence.*;
 
-repositories {
-	mavenCentral()
-}
-dependencies {
+@Entity
+@NoArgsConstructor(access = AccessLevel.PUBLIC)
+@Getter
+public class Write {
 
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springframework.boot:spring-boot-devtools'
-	implementation 'com.github.gavlyukovskiy:p6spy-spring-boot-starter:1.8.0'
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-hibernate5'
-	//querydsl 추가
-	implementation "com.querydsl:querydsl-jpa:${queryDslVersion}"
-	annotationProcessor "com.querydsl:querydsl-apt:${queryDslVersion}"
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private Long writeId;
 
-	compileOnly 'org.projectlombok:lombok'
-	runtimeOnly 'com.h2database:h2'
-	annotationProcessor 'org.projectlombok:lombok'
+    @Column(name = "write_title")
+    private String title;
 
-	//테스트에서 lombok 사용
-	testCompileOnly 'org.projectlombok:lombok'
-	testAnnotationProcessor 'org.projectlombok:lombok'
+    @Lob
+    private String content;
 
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    @Builder
+    public Write(String title, String content) {
+        this.title = title;
+        this.content = content;
+    }
 
-
-}
-
-def querydslDir = "$buildDir/generated/querydsl"
-querydsl {
-	jpa = true
-	querydslSourcesDir = querydslDir
-}
-sourceSets {
-	main.java.srcDir querydslDir
-}
-configurations {
-	querydsl.extendsFrom compileClasspath
-}
-compileQuerydsl {
-	options.annotationProcessorPath = configurations.querydsl
-}
-//querydsl 추가 끝
-
-tasks.named('test') {
-	useJUnitPlatform()
 }
 ```
+
+* 엔티티 변수명을 writeId로 변환
